@@ -1,0 +1,353 @@
+<title>Weekera</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;500&family=Figtree:wght@400;500;600&display=swap">
+<style>
+  /* Layout: ein Papierbogen – Kopf, dann ein 9 × 12 Raster (Aktionen × Wochen), Fusszeile mit Zählung.
+     Bewusst ein einziger heller Look wie ein gedrucktes Blatt. */
+  :root {
+    --desk: #e9e4dc;
+    --paper: #f4eee6;
+    --cell: #fbf7f2;
+    --cell-line: #e9dfd3;
+    --ink: #1e2420;
+    --muted: #8a8177;
+    --focus: #1f3b2a;
+    --cat-training: #e3f47c; --cat-training-ink: #2b3310;
+    --cat-essen: #ead9c3;    --cat-essen-ink: #3d2f1f;
+    --cat-gehen: #f3c56f;    --cat-gehen-ink: #3b2a0a;
+    --cat-review: #1f3b2a;   --cat-review-ink: #f1ede4;
+    --font-display: "Playfair Display", Georgia, "Times New Roman", serif;
+    --font-body: "Figtree", "Segoe UI", system-ui, sans-serif;
+    --label-w: 168px;
+    color-scheme: light;
+  }
+
+  body {
+    background: var(--desk);
+    color: var(--ink);
+    font-family: var(--font-body);
+    font-size: 14px;
+    line-height: 1.45;
+    padding-left: max(16px, env(safe-area-inset-left, 0px));
+    padding-right: max(16px, env(safe-area-inset-right, 0px));
+  }
+  .page { max-width: 900px; margin: 0 auto; padding-block: 40px 56px; display: grid; gap: 16px; }
+  button, input, select { font: inherit; color: inherit; }
+  button { cursor: pointer; }
+  :focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+
+  .sheet {
+    background: var(--paper);
+    padding: 28px 28px 20px;
+    box-shadow: 0 1px 2px rgba(40, 30, 20, .06), 0 12px 32px rgba(40, 30, 20, .08);
+    display: grid;
+    gap: 22px;
+    min-width: 0;
+  }
+
+  /* Kopf */
+  .top { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 12px 24px; }
+  .eyebrow {
+    margin: 0 0 8px; font-size: 10px; font-weight: 600;
+    letter-spacing: .12em; text-transform: uppercase; color: var(--muted);
+  }
+  .eyebrow::before { content: "●"; font-size: 7px; margin-right: 6px; vertical-align: 2px; color: var(--ink); }
+  h1 {
+    margin: 0; font-family: var(--font-display); font-weight: 400;
+    font-size: clamp(34px, 6vw, 48px); line-height: 1; letter-spacing: -.01em;
+  }
+  .method { font-family: var(--font-display); font-size: 18px; color: var(--muted); margin: 6px 0 0; }
+  .method .x { font-family: var(--font-body); font-weight: 400; }
+  .tagline { margin: 0; text-align: right; font-size: 12px; line-height: 1.4; max-width: 22ch; }
+  .tagline strong { display: block; font-weight: 600; margin-top: 4px; font-variant-numeric: tabular-nums; }
+
+  /* Raster */
+  .scroller { overflow-x: auto; margin-inline: -4px; padding-inline: 4px; }
+  .grid {
+    display: grid;
+    grid-template-columns: var(--label-w) repeat(12, minmax(34px, 1fr));
+    gap: 5px;
+    min-width: 620px;
+  }
+  .is-editing .grid { --label-w: 250px; min-width: 760px; }
+  .corner, .wk {
+    font-size: 9px; font-weight: 600; letter-spacing: .1em; text-transform: uppercase; color: var(--muted);
+  }
+  .corner { align-self: end; padding-bottom: 6px; position: sticky; left: 0; background: var(--paper); z-index: 1; }
+  .wk { text-align: center; line-height: 1.2; padding-bottom: 4px; }
+  .wk .n { display: block; font-family: var(--font-display); font-size: 17px; font-weight: 400; letter-spacing: 0; color: var(--ink); text-transform: none; font-variant-numeric: tabular-nums; }
+  .wk .d { display: block; font-weight: 500; letter-spacing: 0; text-transform: none; font-variant-numeric: tabular-nums; }
+  .wk.is-now .n { font-weight: 500; text-decoration: underline; text-underline-offset: 4px; text-decoration-thickness: 1.5px; }
+  .wk.is-now { color: var(--ink); }
+
+  .label {
+    position: sticky; left: 0; z-index: 1;
+    border-radius: 4px; padding: 7px 9px;
+    min-height: 50px; display: grid; align-content: center; gap: 1px;
+    box-shadow: -5px 0 0 var(--paper);
+  }
+  .label .no { font-size: 8px; font-weight: 600; letter-spacing: .1em; opacity: .7; font-variant-numeric: tabular-nums; }
+  .label .name { font-family: var(--font-display); font-size: 15px; line-height: 1.15; overflow-wrap: anywhere; }
+  .label .detail { font-size: 9.5px; opacity: .75; overflow-wrap: anywhere; }
+  .cat-training { background: var(--cat-training); color: var(--cat-training-ink); }
+  .cat-essen    { background: var(--cat-essen);    color: var(--cat-essen-ink); }
+  .cat-gehen    { background: var(--cat-gehen);    color: var(--cat-gehen-ink); }
+  .cat-review   { background: var(--cat-review);   color: var(--cat-review-ink); }
+
+  .label input, .label select {
+    width: 100%; min-width: 0; border: 1px solid color-mix(in srgb, currentColor 25%, transparent);
+    background: color-mix(in srgb, var(--cell) 70%, transparent); color: var(--ink);
+    border-radius: 3px; padding: 2px 6px; font-size: 12px;
+  }
+  .label .edit-row { display: grid; grid-template-columns: 1fr 92px; gap: 4px; margin-top: 3px; }
+
+  .box {
+    min-height: 50px; border-radius: 4px; padding: 0;
+    border: 1px solid var(--cell-line); background: var(--cell);
+    display: grid; place-items: center;
+    transition: background .12s ease, border-color .12s ease;
+  }
+  .box:hover:not(:disabled) { border-color: var(--ink); }
+  .box.is-now { border-color: color-mix(in srgb, var(--ink) 45%, var(--cell-line)); }
+  .box:disabled { cursor: default; opacity: .55; }
+  .box svg { width: 16px; height: 16px; display: none; }
+  .box.is-done svg { display: block; }
+  .box.is-done.cat-training { background: var(--cat-training); border-color: var(--cat-training); color: var(--cat-training-ink); }
+  .box.is-done.cat-essen    { background: var(--cat-essen);    border-color: var(--cat-essen);    color: var(--cat-essen-ink); }
+  .box.is-done.cat-gehen    { background: var(--cat-gehen);    border-color: var(--cat-gehen);    color: var(--cat-gehen-ink); }
+  .box.is-done.cat-review   { background: var(--cat-review);   border-color: var(--cat-review);   color: var(--cat-review-ink); }
+  .box:not(.is-done) { background: var(--cell); color: var(--ink); }
+
+  /* Fuss */
+  .foot { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: baseline; gap: 6px 16px; font-size: 11px; }
+  .foot p { margin: 0; }
+  .count { font-size: 9px; font-weight: 600; letter-spacing: .12em; text-transform: uppercase; color: var(--muted); font-variant-numeric: tabular-nums; }
+
+  /* Steuerung unter dem Blatt */
+  .controls { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 16px; font-size: 13px; }
+  .controls label { display: flex; align-items: center; gap: 8px; color: var(--muted); }
+  .controls input[type="date"] { border: 1px solid var(--cell-line); background: var(--cell); border-radius: 6px; padding: 5px 8px; color: var(--ink); }
+  .btn { border: 1px solid var(--ink); background: transparent; border-radius: 6px; padding: 6px 14px; }
+  .btn:hover { background: var(--ink); color: var(--paper); }
+  .btn.solid { background: var(--ink); color: var(--paper); }
+  .btn.danger { border-color: #9c3a2a; color: #9c3a2a; }
+  .btn.danger:hover { background: #9c3a2a; color: var(--paper); }
+  .spacer { flex: 1; }
+  .confirm { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+  .confirm span { color: #9c3a2a; }
+  .hint { margin: 0; font-size: 12px; color: var(--muted); }
+
+  @media (max-width: 560px) {
+    .page { padding-block: 20px 40px; }
+    .sheet { padding: 20px 16px 16px; }
+    .tagline { text-align: left; }
+    :root { --label-w: 132px; }
+    .label .name { font-size: 14px; }
+  }
+  @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+
+<main class="page">
+  <section class="sheet" id="blatt">
+    <header class="top">
+      <div>
+        <p class="eyebrow" id="resttage"></p>
+        <h1>Weekera</h1>
+        <p class="method">Die 9 <span class="x">×</span> 12 Methode</p>
+      </div>
+      <p class="tagline">Zwölf Wochen. Neun konkrete Aktionen pro Woche.<strong id="wochenstand"></strong></p>
+    </header>
+
+    <div class="scroller">
+      <div class="grid" id="raster" role="grid" aria-label="Aktionen pro Woche"></div>
+    </div>
+
+    <footer class="foot">
+      <p>Ein leeres Feld ist eine Information. Mach im nächsten Feld weiter.</p>
+      <p class="count" id="zaehler"></p>
+    </footer>
+  </section>
+
+  <div class="controls">
+    <label for="startdatum">Start der Woche 1
+      <input type="date" id="startdatum">
+    </label>
+    <span class="spacer"></span>
+    <span id="reset-bereich"></span>
+    <button type="button" class="btn" id="bearbeiten">Aktionen bearbeiten</button>
+  </div>
+  <p class="hint">Tippe auf ein Feld, wenn du die Aktion in dieser Woche gemacht hast. Künftige Wochen bleiben gesperrt. Deine Einträge bleiben nur in diesem Browser gespeichert.</p>
+</main>
+
+<script>
+(() => {
+  const KEY = "weekera-v1";
+  const WEEKS = 12;
+  const CATS = { training: "Training", essen: "Essen", gehen: "Bewegung", review: "Review" };
+  const CHECK = '<svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3.5 8.5l3 3 6-7" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+
+  const pad = n => String(n).padStart(2, "0");
+  const keyOf = d => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+  const parseKey = k => { const [y, m, d] = k.split("-").map(Number); return new Date(y, m - 1, d); };
+  const addDays = (d, n) => { const x = new Date(d); x.setDate(x.getDate() + n); return x; };
+  const today = () => { const d = new Date(); d.setHours(0, 0, 0, 0); return d; };
+  const monday = d => addDays(d, -((d.getDay() + 6) % 7));
+  const short = d => `${d.getDate()}.${d.getMonth() + 1}.`;
+  const esc = s => String(s).replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+
+  function defaults() {
+    return {
+      start: keyOf(monday(today())),
+      actions: [
+        { name: "Unterkörper",     detail: "Mo · Gewichte & Wdh. notieren", cat: "training" },
+        { name: "Oberkörper",      detail: "Di · Gewichte & Wdh. notieren", cat: "training" },
+        { name: "Unterkörper",     detail: "Do · Gewichte & Wdh. notieren", cat: "training" },
+        { name: "Ganzkörper",      detail: "Sa · Gewichte & Wdh. notieren", cat: "training" },
+        { name: "Meal Prep",       detail: "So · 30 Min",                   cat: "essen" },
+        { name: "Meal Prep",       detail: "Mi · 30 Min",                   cat: "essen" },
+        { name: "Spaziergang",     detail: "20 Min · fester Tag & Zeit",    cat: "gehen" },
+        { name: "Spaziergang",     detail: "20 Min · fester Tag & Zeit",    cat: "gehen" },
+        { name: "Sonntags-Review", detail: "Eine konkrete Anpassung",       cat: "review" }
+      ],
+      done: {}
+    };
+  }
+
+  function load() {
+    try {
+      const raw = localStorage.getItem(KEY);
+      if (raw) {
+        const d = JSON.parse(raw);
+        if (d && Array.isArray(d.actions) && d.actions.length === 9 && d.start) return { ...d, done: d.done || {} };
+      }
+    } catch (e) {}
+    return defaults();
+  }
+  function save() { try { localStorage.setItem(KEY, JSON.stringify(state)); } catch (e) {} }
+
+  let state = load();
+  let editing = false;
+  let confirmReset = false;
+
+  const $ = id => document.getElementById(id);
+  const startDate = () => parseKey(state.start);
+  const currentWeek = () => Math.floor((today() - startDate()) / (7 * 864e5)) + 1; // kann <1 oder >12 sein
+  const cellKey = (a, w) => `${a}-${w}`;
+
+  function render() {
+    const t = today();
+    const endOfYear = new Date(t.getFullYear(), 11, 31);
+    const left = Math.round((endOfYear - t) / 864e5);
+    $("resttage").textContent = `${left} ${left === 1 ? "Tag" : "Tage"} übrig in ${t.getFullYear()}`;
+
+    const now = currentWeek();
+    $("wochenstand").textContent = now < 1
+      ? `Start am ${short(startDate())}`
+      : now > WEEKS ? "Zwölf Wochen abgeschlossen" : `Woche ${now} von ${WEEKS}`;
+
+    const total = state.actions.length * WEEKS;
+    const doneCount = Object.keys(state.done).filter(k => state.done[k]).length;
+    $("zaehler").textContent = `${doneCount} von ${total} Feldern`;
+
+    $("startdatum").value = state.start;
+    $("blatt").classList.toggle("is-editing", editing);
+    $("bearbeiten").textContent = editing ? "Fertig" : "Aktionen bearbeiten";
+    $("bearbeiten").classList.toggle("solid", editing);
+
+    $("reset-bereich").innerHTML = !editing ? "" : confirmReset
+      ? `<span class="confirm"><span>Alle ${doneCount} Häkchen löschen?</span>
+           <button type="button" class="btn danger" data-act="reset-yes">Löschen</button>
+           <button type="button" class="btn" data-act="reset-no">Abbrechen</button></span>`
+      : `<button type="button" class="btn danger" data-act="reset">Häkchen zurücksetzen</button>`;
+
+    let html = `<div class="corner" role="columnheader">Aktion ↓ · Woche →</div>`;
+    for (let w = 1; w <= WEEKS; w++) {
+      const wStart = addDays(startDate(), (w - 1) * 7);
+      html += `<div class="wk${w === now ? " is-now" : ""}" role="columnheader" title="${short(wStart)} – ${short(addDays(wStart, 6))}">Wo<span class="n">${w}</span><span class="d">${short(wStart)}</span></div>`;
+    }
+
+    state.actions.forEach((a, i) => {
+      const no = pad(i + 1);
+      const label = editing
+        ? `<div class="label cat-${a.cat}" role="rowheader">
+             <span class="no">${no}</span>
+             <input id="name-${i}" data-field="name" data-i="${i}" value="${esc(a.name)}" maxlength="30" aria-label="Name der Aktion ${no}">
+             <div class="edit-row">
+               <input id="detail-${i}" data-field="detail" data-i="${i}" value="${esc(a.detail)}" maxlength="40" aria-label="Detail der Aktion ${no}">
+               <select id="cat-${i}" data-field="cat" data-i="${i}" aria-label="Kategorie der Aktion ${no}">
+                 ${Object.entries(CATS).map(([k, v]) => `<option value="${k}"${k === a.cat ? " selected" : ""}>${v}</option>`).join("")}
+               </select>
+             </div>
+           </div>`
+        : `<div class="label cat-${a.cat}" role="rowheader">
+             <span class="no">${no}</span>
+             <span class="name">${esc(a.name)}</span>
+             <span class="detail">${esc(a.detail)}</span>
+           </div>`;
+      html += label;
+      for (let w = 1; w <= WEEKS; w++) {
+        const done = !!state.done[cellKey(i, w)];
+        const future = w > now;
+        const cls = ["box", `cat-${a.cat}`, done ? "is-done" : "", w === now ? "is-now" : ""].join(" ").replace(/\s+/g, " ").trim();
+        html += `<button type="button" role="gridcell" class="${cls}" data-act="toggle" data-a="${i}" data-w="${w}"${future ? " disabled" : ""}
+                   aria-pressed="${done}" aria-label="${esc(a.name)}, Woche ${w}: ${future ? "noch nicht dran" : done ? "erledigt" : "offen"}">${CHECK}</button>`;
+      }
+    });
+    $("raster").innerHTML = html;
+  }
+
+  function refocus(sel) { const el = sel && document.querySelector(sel); if (el) el.focus(); }
+
+  document.addEventListener("click", e => {
+    const btn = e.target.closest("button[data-act]");
+    if (!btn) return;
+    const { act, a, w } = btn.dataset;
+    let focus = null;
+    if (act === "toggle") {
+      const k = cellKey(a, w);
+      if (state.done[k]) delete state.done[k]; else state.done[k] = true;
+      save();
+      focus = `[data-act="toggle"][data-a="${a}"][data-w="${w}"]`;
+    } else if (act === "reset") {
+      confirmReset = true; focus = `[data-act="reset-no"]`;
+    } else if (act === "reset-no") {
+      confirmReset = false; focus = `[data-act="reset"]`;
+    } else if (act === "reset-yes") {
+      state.done = {}; confirmReset = false; save(); focus = `[data-act="reset"]`;
+    } else return;
+    render();
+    refocus(focus);
+  });
+
+  $("raster").addEventListener("input", e => {
+    const el = e.target.closest("[data-field]");
+    if (!el) return;
+    const a = state.actions[+el.dataset.i];
+    a[el.dataset.field] = el.value;
+    save();
+    if (el.dataset.field === "cat") { render(); refocus(`#cat-${el.dataset.i}`); }
+  });
+
+  $("bearbeiten").addEventListener("click", () => {
+    editing = !editing;
+    confirmReset = false;
+    state.actions.forEach(a => { a.name = a.name.trim() || "Aktion"; a.detail = a.detail.trim(); });
+    save();
+    render();
+    refocus(editing ? "#name-0" : "#bearbeiten");
+  });
+
+  $("startdatum").addEventListener("change", e => {
+    if (!e.target.value) return;
+    state.start = e.target.value;
+    save();
+    render();
+  });
+
+  render();
+  let lastDay = keyOf(today());
+  setInterval(() => { const k = keyOf(today()); if (k !== lastDay) { lastDay = k; render(); } }, 60000);
+})();
+</script>
