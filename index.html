@@ -178,7 +178,7 @@
     <span id="reset-bereich"></span>
     <button type="button" class="btn" id="bearbeiten">Aktionen bearbeiten</button>
   </div>
-  <p class="hint">Tippe auf ein Feld, wenn du die Aktion in dieser Woche gemacht hast. Künftige Wochen bleiben gesperrt. Deine Einträge bleiben nur in diesem Browser gespeichert.</p>
+  <p class="hint">Tippe auf ein Feld, wenn du die Aktion in dieser Woche gemacht hast. Künftige Wochen bleiben gesperrt. <span id="speicherstatus"></span></p>
 </main>
 
 <script>
@@ -215,17 +215,79 @@
     };
   }
 
+  const valid = d => d && Array.isArray(d.actions) && d.actions.length === 9 && typeof d.start === "string";
+  const clone = d => JSON.parse(JSON.stringify(d));
+
+  // Speicher 1: localStorage dieses Browsers
+  let localOk = false;
   function load() {
     try {
+      localStorage.setItem(KEY + "-test", "1");
+      localStorage.removeItem(KEY + "-test");
+      localOk = true;
       const raw = localStorage.getItem(KEY);
       if (raw) {
         const d = JSON.parse(raw);
-        if (d && Array.isArray(d.actions) && d.actions.length === 9 && d.start) return { ...d, done: d.done || {} };
+        if (valid(d)) return { ...d, done: d.done || {} };
       }
     } catch (e) {}
     return defaults();
   }
-  function save() { try { localStorage.setItem(KEY, JSON.stringify(state)); } catch (e) {} }
+  function writeLocal() {
+    try { localStorage.setItem(KEY, JSON.stringify(state)); localOk = true; } catch (e) { localOk = false; }
+  }
+  function save() {
+    state.updated = Date.now();
+    writeLocal();
+    scheduleRemote();
+    showStatus();
+  }
+
+  // Speicher 2: dein Claude-Konto (bleibt auch, wenn der Browser den localStorage leert)
+  let remoteRef = null, remoteOk = false, writing = false, again = false, timer = null;
+  function scheduleRemote() {
+    if (!remoteRef) return;
+    clearTimeout(timer);
+    timer = setTimeout(flushRemote, 600);
+  }
+  async function flushRemote() {
+    if (writing) { again = true; return; }
+    writing = true;
+    try { await remoteRef.set(clone(state)); remoteOk = true; } catch (e) { remoteOk = false; }
+    writing = false;
+    showStatus();
+    if (again) { again = false; flushRemote(); }
+  }
+  async function connect() {
+    if (!window.claude || !window.claude.use) return;
+    try {
+      const [db, user] = await Promise.all([window.claude.use("db"), window.claude.use("user")]);
+      if (!db || !user) return;
+      const id = await user.id();
+      if (!id) return;
+      const ref = db.doc("data/users/" + id + "/weekera");
+      const snap = await ref.get();
+      const remote = snap.exists ? snap.data() : null;
+      remoteRef = ref;
+      remoteOk = true;
+      if (valid(remote) && (remote.updated || 0) > (state.updated || 0)) {
+        state = { ...clone(remote), done: { ...(remote.done || {}) } };
+        writeLocal();
+        render();
+      } else if (state.updated) {
+        flushRemote();
+      }
+      showStatus();
+    } catch (e) {}
+  }
+
+  function showStatus() {
+    $("speicherstatus").textContent = remoteRef && remoteOk
+      ? "Gespeichert in deinem Claude-Konto und in diesem Browser."
+      : localOk
+        ? "Gespeichert in diesem Browser."
+        : "Dieser Browser erlaubt kein Speichern. Einträge gehen beim Neuladen verloren.";
+  }
 
   let state = load();
   let editing = false;
@@ -347,6 +409,8 @@
   });
 
   render();
+  showStatus();
+  connect();
   let lastDay = keyOf(today());
   setInterval(() => { const k = keyOf(today()); if (k !== lastDay) { lastDay = k; render(); } }, 60000);
 })();
